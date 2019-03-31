@@ -118,7 +118,6 @@ const PMButton = L.Control.extend({
     );
 
     const activeActions = button.actions;
-
     const actions = {
       cancel: {
         text: getTranslation('actions.cancel'),
