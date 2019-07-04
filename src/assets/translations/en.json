@@ -30,6 +30,7 @@
     "snappingButton": "Snap dragged marker to other layers and vertices",
     "pinningButton": "Pin shared vertices together",
     "rotateButton": "Rotate Layers",
-    "drawTextButton": "Draw Text"
+    "drawTextButton": "Draw Text",
+    "unionButton": "Merge Layers"
   }
 }
