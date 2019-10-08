@@ -50,6 +50,7 @@
 .hidden {
   display: none;
 }
+
 .leaflet-pm-toolbar {
 }
 
@@ -163,3 +164,4 @@
   cursor: pointer;
   background-color: #777;
 }
+
