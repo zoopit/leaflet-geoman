@@ -1,6 +1,7 @@
 import en from './en.json';
 import de from './de.json';
 import it from './it.json';
+import id from './id.json';
 import ro from './ro.json';
 import ru from './ru.json';
 import es from './es.json';
@@ -10,11 +11,14 @@ import no from './no.json';
 import pt from './pt.json';
 import zh from './zh.json';
 import pt_br from './pt_br.json';
+import pl from './pl.json';
+import sv from './sv.json';
 
 export default {
   en,
   de,
   it,
+  id,
   ro,
   ru,
   es,
@@ -23,5 +27,7 @@ export default {
   no,
   pt,
   pt_br,
-  zh
+  zh,
+  pl,
+  sv
 };
