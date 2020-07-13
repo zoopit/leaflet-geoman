@@ -9,7 +9,7 @@ module.exports = {
     mode: 'development',
     entry: ['./src/js/L.PM.js'],
     output: {
-        filename: 'leaflet-geoman.min.js',
+        filename: 'leaflet-geoman.dev.js',
         path: path.resolve(__dirname, 'dist'),
     },
     module: {
