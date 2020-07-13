@@ -9,6 +9,9 @@ const SnapMixin = {
     this._layer.off('pm:dragstart', this._unsnap, this);
     this._layer.on('pm:dragstart', this._unsnap, this);
   },
+  _disableSnapping() {
+    this._layer.off('pm:dragstart', this._unsnap, this);
+  },
   _assignEvents(markerArr) {
     // loop through marker array and assign events to the markers
     markerArr.forEach(marker => {
@@ -54,16 +57,24 @@ const SnapMixin = {
     this._snapList.splice(index, 1);
   },
   _handleSnapping(e) {
+    function throttledList() {
+      return L.Util.throttle(this._createSnapList, 100, this);
+    }
+
     // if snapping is disabled via holding ALT during drag, stop right here
     if (e.originalEvent.altKey) {
       return false;
     }
 
-    // create a list of polygons that the marker could snap to
+    // create a list of layers that the marker could snap to
     // this isn't inside a movestart/dragstart callback because middlemarkers are initialized
     // after dragstart/movestart so it wouldn't fire for them
     if (this._snapList === undefined) {
-      this._createSnapList(e);
+      this._createSnapList();
+
+      // re-create the snaplist again when a layer is added during draw
+      this._map.off('layeradd', throttledList, this);
+      this._map.on('layeradd', throttledList, this);
     }
 
     // if there are no layers to snap to, stop here
@@ -97,9 +108,11 @@ const SnapMixin = {
     // event info for pm:snap and pm:unsnap
     const eventInfo = {
       marker,
+      shape: this._shape,
       snapLatLng,
       segment: closestLayer.segment,
       layer: this._layer,
+      workingLayer: this._layer,
       layerInteractedWith: closestLayer.layer, // for lack of a better property name
       distance: closestLayer.distance,
     };
@@ -209,17 +222,25 @@ const SnapMixin = {
     // temporary markers of polygon-edits
     map.eachLayer(layer => {
       if (
-        layer instanceof L.Polyline ||
-        layer instanceof L.Marker ||
-        layer instanceof L.CircleMarker &&
+        (layer instanceof L.Polyline ||
+          layer instanceof L.Marker ||
+          layer instanceof L.CircleMarker) &&
         layer.options.snapIgnore !== true
-
       ) {
+
+        // adds a hidden polygon which matches the border of the circle
+        if ((layer instanceof L.Circle || layer instanceof L.CircleMarker) && layer.pm._hiddenPolyCircle) {
+          layers.push(layer.pm._hiddenPolyCircle);
+        }
         layers.push(layer);
 
         // this is for debugging
         const debugLine = L.polyline([], { color: 'red', pmIgnore: true });
+        debugLine._pmTempLayer = true;
         debugIndicatorLines.push(debugLine);
+        if (layer instanceof L.Circle || layer instanceof L.CircleMarker) {
+          debugIndicatorLines.push(debugLine);
+        }
 
         // uncomment 👇 this line to show helper lines for debugging
         // debugLine.addTo(map);
@@ -234,7 +255,7 @@ const SnapMixin = {
       layer => layer._latlng || (layer._latlngs && layer._latlngs.length > 0)
     );
 
-    // finally remove everything that's leaflet.pm specific temporary stuff
+    // finally remove everything that's leaflet-geoman specific temporary stuff
     layers = layers.filter(layer => !layer._pmTempLayer);
 
     // save snaplist from layers and the other snap layers added from other classes/scripts
@@ -252,6 +273,10 @@ const SnapMixin = {
 
     // loop through the layers
     layers.forEach((layer, index) => {
+      // For Circles and CircleMarkers to prevent that they snap to the own borders.
+      if (layer._parentCopy && layer._parentCopy === this._layer) {
+        return;
+      }
       // find the closest latlng, segment and the distance of this layer to the dragged marker latlng
       const results = this._calcLayerDistances(latlng, layer);
 

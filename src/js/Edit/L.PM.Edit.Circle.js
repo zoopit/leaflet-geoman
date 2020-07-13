@@ -1,9 +1,32 @@
 import Edit from './L.PM.Edit';
+import Utils from "../L.PM.Utils";
 
 Edit.Circle = Edit.extend({
+  _shape: 'Circle',
   initialize(layer) {
     this._layer = layer;
     this._enabled = false;
+  },
+  applyOptions() {
+    if (this.options.snappable) {
+      this._initSnappableMarkers();
+      // sync the hintline with hint marker
+      this._outerMarker.on('move', this._syncHintLine, this);
+      this._outerMarker.on('move', this._syncCircleRadius, this);
+      this._centerMarker.on('move', this._moveCircle, this);
+    } else {
+      this._disableSnapping();
+    }
+  },
+  _disableSnapping() {
+    this._markers.forEach(marker => {
+      marker.off('move', this._syncHintLine, this);
+      marker.off('move', this._syncCircleRadius, this);
+      marker.off('drag', this._handleSnapping, this);
+      marker.off('dragend', this._cleanupSnapping, this);
+    });
+
+    this._layer.off('pm:dragstart', this._unsnap, this);
   },
   toggleEdit(options) {
     if (!this.enabled()) {
@@ -29,13 +52,20 @@ Edit.Circle = Edit.extend({
     // change state
     this._enabled = true;
 
-    // // init markers
+    // init markers
     this._initMarkers();
+
+    this.applyOptions();
+
+    this._layer.fire('pm:enable', { layer: this._layer });
 
     // if polygon gets removed from map, disable edit mode
     this._layer.on('remove', e => {
       this.disable(e.target);
     });
+    // create polygon around the circle border
+    this._updateHiddenPolyCircle();
+
   },
   disable(layer = this._layer) {
     // if it's not enabled, it doesn't need to be disabled
@@ -47,9 +77,13 @@ Edit.Circle = Edit.extend({
     if (layer.pm._dragging) {
       return false;
     }
+
+    this._centerMarker.off('dragstart', this._fireDragStart, this);
+    this._centerMarker.off('drag', this._fireDrag, this);
+    this._centerMarker.off('dragend', this._fireDragEnd, this);
+
     layer.pm._enabled = false;
     layer.pm._helperLayers.clearLayers();
-
     // clean up draggable
     layer.off('mousedown');
     layer.off('mouseup');
@@ -58,8 +92,10 @@ Edit.Circle = Edit.extend({
     const el = layer._path ? layer._path : this._layer._renderer._container;
     L.DomUtil.removeClass(el, 'leaflet-pm-draggable');
 
+    this._layer.fire('pm:disable', { layer: this._layer });
+
     if (this._layerEdited) {
-      this._layer.fire('pm:update', {});
+      this._layer.fire('pm:update', { layer: this._layer });
     }
     this._layerEdited = false;
 
@@ -89,9 +125,7 @@ Edit.Circle = Edit.extend({
     this._markers = [this._centerMarker, this._outerMarker];
     this._createHintLine(this._centerMarker, this._outerMarker);
 
-    if (this.options.snappable) {
-      this._initSnappableMarkers();
-    }
+
   },
   _getLatLngOnCircle(center, radius) {
     const pointA = this._map.project(center);
@@ -113,6 +147,8 @@ Edit.Circle = Edit.extend({
     this._outerMarker.setLatLng(outer);
     this._syncHintLine();
 
+    this._updateHiddenPolyCircle();
+
     this._layer.fire('pm:centerplaced', {
       layer: this._layer,
       latlng: center,
@@ -120,6 +156,7 @@ Edit.Circle = Edit.extend({
   },
   _onMarkerDragStart(e) {
     this._layer.fire('pm:markerdragstart', {
+      layer: this._layer,
       markerEvent: e,
     });
   },
@@ -129,6 +166,7 @@ Edit.Circle = Edit.extend({
 
     // fire markerdragend event
     this._layer.fire('pm:markerdragend', {
+      layer: this._layer,
       markerEvent: e,
     });
   },
@@ -139,6 +177,7 @@ Edit.Circle = Edit.extend({
     const distance = A.distanceTo(B);
 
     this._layer.setRadius(distance);
+    this._updateHiddenPolyCircle();
   },
   _syncHintLine() {
     const A = this._centerMarker.getLatLng();
@@ -161,6 +200,10 @@ Edit.Circle = Edit.extend({
     // TODO: switch back to move event once this leaflet issue is solved:
     // https://github.com/Leaflet/Leaflet/issues/6492
     marker.on('drag', this._moveCircle, this);
+
+    marker.on('dragstart', this._fireDragStart, this);
+    marker.on('drag', this._fireDrag, this);
+    marker.on('dragend', this._fireDragEnd, this);
     // marker.on('contextmenu', this._removeMarker, this);
 
     return marker;
@@ -190,7 +233,27 @@ Edit.Circle = Edit.extend({
   },
   _fireEdit() {
     // fire edit event
-    this._layer.fire('pm:edit');
+    this._layer.fire('pm:edit', { layer: this._layer });
     this._layerEdited = true;
   },
+  _fireDragStart() {
+    this._layer.fire('pm:dragstart');
+  },
+  _fireDrag(e) {
+    this._layer.fire('pm:drag', e);
+  },
+  _fireDragEnd() {
+    this._layer.fire('pm:dragend');
+  },
+  _updateHiddenPolyCircle() {
+    if (this._hiddenPolyCircle) {
+      this._hiddenPolyCircle.setLatLngs(Utils.circleToPolygon(this._layer, 200).getLatLngs());
+    } else {
+      this._hiddenPolyCircle = Utils.circleToPolygon(this._layer, 200);
+    }
+
+    if (!this._hiddenPolyCircle._parentCopy) {
+      this._hiddenPolyCircle._parentCopy = this._layer
+    }
+  }
 });

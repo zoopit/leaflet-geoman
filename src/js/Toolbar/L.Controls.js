@@ -6,15 +6,24 @@ const PMButton = L.Control.extend({
   },
   // TODO: clean up variable names like _button should be _options and that domNodeVariable stuff
   initialize(options) {
-    this._button = L.Util.setOptions(this, options);
+    // replaced setOptions with this because classNames returned undefined 🤔
+    this._button = Object.assign({}, this.options, options);
   },
   onAdd(map) {
     this._map = map;
-
-    this._container =
-      this._button.tool === 'edit'
-        ? this._map.pm.Toolbar.editContainer
-        : this._map.pm.Toolbar.drawContainer;
+    if (!this._map.pm.Toolbar.options.oneBlock) {
+      if (this._button.tool === 'edit') {
+        this._container = this._map.pm.Toolbar.editContainer;
+      } else if (this._button.tool === 'options') {
+        this._container = this._map.pm.Toolbar.optionsContainer;
+      } else if (this._button.tool === 'custom') {
+        this._container = this._map.pm.Toolbar.customContainer;
+      } else {
+        this._container = this._map.pm.Toolbar.drawContainer;
+      }
+    } else {
+      this._container = this._map.pm.Toolbar.drawContainer;
+    }
     this.buttonsDomNode = this._makeButton(this._button);
     this._container.appendChild(this.buttonsDomNode);
 
@@ -52,11 +61,14 @@ const PMButton = L.Control.extend({
     this.toggle(false);
   },
   _triggerClick(e) {
-    this._button.onClick(e);
+    // TODO is this a big change when we change from e to a object with the event and the button? Now it's the second argument
+    this._button.onClick(e, { button: this, event: e });
     this._clicked(e);
-    this._button.afterClick(e);
+    this._button.afterClick(e, { button: this, event: e });
   },
   _makeButton(button) {
+    const pos = this.options.position.indexOf("right") > -1 ? "pos-right" : "";
+
     // button container
     const buttonContainer = L.DomUtil.create(
       'div',
@@ -74,7 +86,7 @@ const PMButton = L.Control.extend({
     // the buttons actions
     const actionContainer = L.DomUtil.create(
       'div',
-      'leaflet-pm-actions-container',
+      `leaflet-pm-actions-container ${pos}`,
       buttonContainer
     );
 
@@ -82,6 +94,12 @@ const PMButton = L.Control.extend({
     const actions = {
       cancel: {
         text: getTranslation('actions.cancel'),
+        onClick() {
+          this._triggerClick();
+        },
+      },
+      finishMode: {
+        text: getTranslation('actions.finish'),
         onClick() {
           this._triggerClick();
         },
@@ -101,21 +119,30 @@ const PMButton = L.Control.extend({
     };
 
     activeActions.forEach(name => {
-      const action = actions[name];
+      let action;
+      if (actions[name]) {
+        action = actions[name];
+      } else if (name.text) {
+        action = name;
+      } else {
+        return;
+      }
       const actionNode = L.DomUtil.create(
         'a',
-        `leaflet-pm-action action-${name}`,
+        `leaflet-pm-action ${pos} action-${name}`,
         actionContainer
       );
 
       actionNode.innerHTML = action.text;
 
-      L.DomEvent.addListener(actionNode, 'click', action.onClick, this);
+      if (action.onClick) {
+        L.DomEvent.addListener(actionNode, 'click', action.onClick, this);
+      }
       L.DomEvent.disableClickPropagation(actionNode);
     });
 
     if (button.toggleStatus) {
-      L.DomUtil.addClass(newButton, 'active');
+      L.DomUtil.addClass(buttonContainer, 'active');
     }
 
     const image = L.DomUtil.create('div', 'control-icon', newButton);
@@ -148,10 +175,12 @@ const PMButton = L.Control.extend({
       return;
     }
 
-    if (!this._button.toggleStatus) {
+    if (!this._button.toggleStatus || this._button.cssToggle === false) {
       L.DomUtil.removeClass(this.buttonsDomNode, 'active');
+      L.DomUtil.removeClass(this._container, 'activeChild');
     } else {
       L.DomUtil.addClass(this.buttonsDomNode, 'active');
+      L.DomUtil.addClass(this._container, 'activeChild');
     }
   },
 

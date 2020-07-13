@@ -1,7 +1,26 @@
 const DragMixin = {
   enableLayerDrag() {
+    // before enabling layer drag, disable layer editing
+    this.disable();
+
+    // if layer never enabled and _map is not set (for snapping)
+    if (!this._map) {
+      this._map = this._layer._map;
+    }
+
     if (this._layer instanceof L.Marker) {
-      this._layer.dragging.enable();
+      this._layer.on('dragstart', this._fireDragStart, this);
+      this._layer.on('drag', this._fireDrag, this);
+      this._layer.on('dragend', this._fireDragEnd, this);
+
+      if (this.options.snappable) {
+        this._initSnappableMarkers();
+      } else {
+        this._disableSnapping();
+      }
+      if (this._layer.dragging) {
+        this._layer.dragging.enable();
+      }
       return;
     }
 
@@ -9,10 +28,12 @@ const DragMixin = {
     this._tempDragCoord = null;
 
     // add CSS class
-    const el = this._layer._path
-      ? this._layer._path
-      : this._layer._renderer._container;
-    L.DomUtil.addClass(el, 'leaflet-pm-draggable');
+    if (this._layer._map.options.preferCanvas) {
+      this._layer.on('mouseout', this.removeDraggingClass, this);
+      this._layer.on('mouseover', this.addDraggingClass, this);
+    } else {
+      this.addDraggingClass();
+    }
 
     this._originalMapDragState = this._layer._map.dragging._enabled;
 
@@ -25,16 +46,22 @@ const DragMixin = {
   },
   disableLayerDrag() {
     if (this._layer instanceof L.Marker) {
-      this._layer.dragging.disable();
+      this._layer.off('dragstart', this._fireDragStart, this);
+      this._layer.off('drag', this._fireDrag, this);
+      this._layer.off('dragend', this._fireDragEnd, this);
+      if (this._layer.dragging) {
+        this._layer.dragging.disable();
+      }
       return;
     }
 
     // remove CSS class
-    const el = this._layer._path
-      ? this._layer._path
-      : this._layer._renderer._container;
-    L.DomUtil.removeClass(el, 'leaflet-pm-draggable');
-
+    if (this._layer._map.options.preferCanvas) {
+      this._layer.off('mouseout', this.removeDraggingClass, this);
+      this._layer.off('mouseover', this.addDraggingClass, this);
+    } else {
+      this.removeDraggingClass();
+    }
     // no longer save the drag state
     this._safeToCacheDragState = false;
 
@@ -58,7 +85,7 @@ const DragMixin = {
     this._layer._map.off('mousemove', this._dragMixinOnMouseMove, this);
 
     // clear up mouseup event
-    this._layer.off('mouseup', this._dragMixinOnMouseUp, this);
+    this._layer._map.off('mouseup', this._dragMixinOnMouseUp, this);
 
     // if no drag happened, don't do anything
     if (!this._dragging) {
@@ -73,7 +100,7 @@ const DragMixin = {
       L.DomUtil.removeClass(el, 'leaflet-pm-dragging');
 
       // fire pm:dragend event
-      this._layer.fire('pm:dragend');
+      this._fireDragEnd();
 
       // fire edit
       this._fireEdit();
@@ -99,8 +126,9 @@ const DragMixin = {
         this._layer._map.dragging.disable();
       }
 
+
       // fire pm:dragstart event
-      this._layer.fire('pm:dragstart');
+      this._fireDragStart();
     }
 
     this._onLayerDrag(e);
@@ -121,7 +149,7 @@ const DragMixin = {
     // save for delta calculation
     this._tempDragCoord = e.latlng;
 
-    this._layer.on('mouseup', this._dragMixinOnMouseUp, this);
+    this._layer._map.on('mouseup', this._dragMixinOnMouseUp, this);
 
     // listen to mousemove on map (instead of polygon),
     // otherwise fast mouse movements stop the drag
@@ -156,17 +184,9 @@ const DragMixin = {
         };
       });
 
-    const moveCoord = coord => ({
-      lat: coord.lat + deltaLatLng.lat,
-      lng: coord.lng + deltaLatLng.lng,
-    });
-
     if (this._layer instanceof L.CircleMarker) {
-      // create the new coordinates array
-      const newCoords = moveCoord(this._layer.getLatLng());
-
       // set new coordinates and redraw
-      this._layer.setLatLng(newCoords);
+      this._layer.setLatLng(latlng);
     } else {
       // create the new coordinates array
       const newCoords = moveCoords(this._layer.getLatLngs());
@@ -178,9 +198,35 @@ const DragMixin = {
     // save current latlng for next delta calculation
     this._tempDragCoord = latlng;
 
+    e.layer = this._layer;
     // fire pm:dragstart event
-    this._layer.fire('pm:drag');
+    this._fireDrag(e);
   },
+  _fireDragStart() {
+    this._layer.fire('pm:dragstart', {
+      layer: this._layer,
+    });
+  },
+  _fireDrag(e) {
+    this._layer.fire('pm:drag', e);
+  },
+  _fireDragEnd() {
+    this._layer.fire('pm:dragend', {
+      layer: this._layer,
+    });
+  },
+  addDraggingClass() {
+    const el = this._layer._path
+      ? this._layer._path
+      : this._layer._renderer._container;
+    L.DomUtil.addClass(el, 'leaflet-pm-draggable');
+  },
+  removeDraggingClass() {
+    const el = this._layer._path
+      ? this._layer._path
+      : this._layer._renderer._container;
+    L.DomUtil.removeClass(el, 'leaflet-pm-draggable');
+  }
 };
 
 export default DragMixin;

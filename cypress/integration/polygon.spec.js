@@ -1,6 +1,69 @@
 describe('Draw & Edit Poly', () => {
   const mapSelector = '#map';
 
+  it('drages shared vertices when pinned', () => {
+    cy.toolbarButton('polygon').click();
+
+    cy.get(mapSelector)
+      .click(120, 150)
+      .click(120, 100)
+      .click(300, 100)
+      .click(300, 200)
+      .click(120, 150);
+
+    cy.toolbarButton('marker').click();
+
+    cy.get(mapSelector)
+      .click(300, 100)
+
+    cy.toolbarButton('edit').click();
+
+  });
+
+  it('works without pmIgnore', () => {
+    cy.window().then(({ L }) => {
+      L.PM.initialize({ optIn: false });
+      cy.drawShape('MultiPolygon');
+    });
+
+    cy.toolbarButton('edit').click();
+
+    cy.hasVertexMarkers(8);
+  });
+
+  it('respects pmIgnore', () => {
+    cy.window().then(({ L }) => {
+      L.PM.initialize({ optIn: false });
+      cy.drawShape('MultiPolygon', true);
+    });
+
+    cy.toolbarButton('edit').click();
+
+    cy.hasVertexMarkers(0);
+  });
+
+  it('respects optIn', () => {
+    cy.window().then(({ L }) => {
+      L.PM.initialize({ optIn: true });
+      cy.drawShape('MultiPolygon');
+    });
+
+    cy.toolbarButton('edit').click();
+
+    cy.hasVertexMarkers(0);
+  });
+
+  it('respects pmIgnore with optIn', () => {
+    cy.window().then(({ L }) => {
+      L.PM.initialize({ optIn: true });
+      cy.drawShape('MultiPolygon', false);
+    });
+
+    cy.toolbarButton('edit').click();
+
+    cy.hasVertexMarkers(8);
+  });
+
   it('doesnt finish single point polys', () => {
     cy.toolbarButton('polygon').click();
 
@@ -13,6 +76,18 @@ describe('Draw & Edit Poly', () => {
     cy.hasVertexMarkers(0);
 
     cy.toolbarButton('edit').click();
+  });
+
+  it('handles polygon additions mid-drawing', () => {
+    // for manual testing
+    cy.toolbarButton('polygon').click();
+    cy.get(mapSelector)
+      .click(90, 250);
+
+    cy.wait(2000)
+    cy.drawShape('LineString', true);
+
+    // manual test if snapping works here
   });
 
   it('doesnt finish two point polys', () => {
@@ -99,6 +174,27 @@ describe('Draw & Edit Poly', () => {
     cy.hasVertexMarkers(4);
   });
 
+
+  it('prevent creation while self intersection', () => {
+
+    cy.window().then(({ map }) => {
+      map.pm.enableDraw('Polygon', {
+        allowSelfIntersection: false,
+      });
+    });
+
+    cy.get(mapSelector)
+      .click(470,100)
+      .click(320,220)
+      .click(600,220)
+      .click(470, 350)
+      .click(470,100);
+
+    cy.toolbarButton('polygon').click();
+
+    cy.hasLayers(2);
+  });
+
   it('removes last vertex', () => {
     cy.toolbarButton('polygon').click();
 
@@ -128,7 +224,7 @@ describe('Draw & Edit Poly', () => {
   it('adds new vertex to end of array', () => {
     // when adding a vertex between the first and last current vertex,
     // the new coord should be added to the end, not the beginning of the coord array
-    // https://github.com/codeofsumit/leaflet.pm/issues/312
+    // https://github.com/geoman-io/leaflet-geoman/issues/312
 
     cy.toolbarButton('polygon')
       .click()
@@ -226,12 +322,12 @@ describe('Draw & Edit Poly', () => {
 
     // draw a polygon
     cy.get(mapSelector)
-      .click(90, 250)
+      .click(120, 250)
       .click(100, 50)
       .click(150, 50)
       .click(150, 150)
       .click(200, 150)
-      .click(90, 250);
+      .click(120, 250);
 
     // button should be disabled after successful draw
     cy.toolbarButton('polygon')
@@ -265,7 +361,7 @@ describe('Draw & Edit Poly', () => {
 
     // remove all markers
     cy.get('.marker-icon:not(.marker-icon-middle)').each(($el, index) => {
-      if (index === 4) {
+      if (index >= 3) {
         // the last marker should be removed automatically, so it shouldn't exist
         cy.wrap($el).should('not.exist');
       } else {
@@ -282,6 +378,49 @@ describe('Draw & Edit Poly', () => {
       .closest('.button-container')
       .should('have.not.class', 'active');
   });
+
+  it('fire pm:cut AFTER the actual cut is visible on the map', () => {
+    cy.window().then(({ map, L }) => {
+
+      Cypress.$(map).on('pm:cut', () => {
+        const layers = [];
+
+        map.eachLayer((layer) => {
+          if (layer instanceof L.Polygon) {
+            layers.push(layer)
+          }
+        })
+
+        expect(layers).to.have.lengthOf(1);
+      });
+    });
+
+    cy.toolbarButton('polygon')
+      .click()
+
+    cy.get(mapSelector)
+      .click(90, 250)
+      .click(150, 50)
+      .click(500, 50)
+      .click(500, 300)
+      .click(300, 350)
+      .click(90, 250);
+
+
+    cy.toolbarButton('cut')
+      .click();
+
+    // draw a polygon to cut
+    cy.get(mapSelector)
+      .click(450, 100)
+      .click(450, 150)
+      .click(400, 150)
+      .click(390, 140)
+      .click(390, 100)
+      .click(450, 100);
+
+
+  })
 
   it('draws a polygon with a hole', () => {
     // activate polygon drawing
@@ -313,6 +452,8 @@ describe('Draw & Edit Poly', () => {
       .click(390, 140)
       .click(390, 100)
       .click(450, 100);
+
+    cy.hasLayers(3);
 
     // enable global edit mode
     cy.toolbarButton('edit')
@@ -379,5 +520,59 @@ describe('Draw & Edit Poly', () => {
     cy.hasMiddleMarkers(4);
 
     cy.toolbarButton('edit').click();
+  });
+
+
+  it('allowSelfIntersectionEdit on polygon', () => {
+
+    cy.window().then(({ map, L,Hand }) => {
+      cy.fixture("PolygonIntersects")
+        .then(json => {
+          const layer = L.geoJSON(json).getLayers()[0].addTo(map);
+          const bounds = layer.getBounds();
+          map.fitBounds(bounds);
+          console.log(map.getCenter());
+          return layer;
+        })
+        .as('poly');
+
+      cy.get("@poly").then((poly)=>{
+
+        expect(poly.pm.hasSelfIntersection()).to.equal(true);
+        const hand_selfIntersectionTrue = new Hand({
+          timing: 'frame',
+          onStop () {
+            expect(poly.pm.hasSelfIntersection()).to.equal(true);
+
+            const toucher_selfIntersectionFalse = hand_selfIntersectionFalse.growFinger('mouse');
+            toucher_selfIntersectionFalse.wait(100).moveTo(504, 337, 100).down().wait(500).moveTo(780, 259, 400).up().wait(100) // allowed
+            // No intersection anymore
+              .moveTo(294, 114, 100).down().wait(500).moveTo(752, 327, 800).up().wait(500) // Not allowed
+          }
+        });
+        var hand_selfIntersectionFalse = new Hand({
+          timing: 'frame',
+          onStop () {
+            expect(poly.pm.hasSelfIntersection()).to.equal(false);
+
+            // Map shouldn't be dragged
+            const center = map.getCenter();
+            expect(center.lat).to.equal(48.77492609799526);
+            expect(center.lng).to.equal(4.847301999999988);
+
+          }
+        });
+
+        cy.wait(1000);
+
+        map.pm.enableGlobalEditMode({ allowSelfIntersection: false,  allowSelfIntersectionEdit: true, });
+
+        const toucher_selfIntersectionTrue = hand_selfIntersectionTrue.growFinger('mouse');
+        toucher_selfIntersectionTrue.wait(100).moveTo(294, 114, 100).down().wait(500).moveTo(782, 127, 400).up().wait(100) // Not allowed
+        .moveTo(313, 345, 100).down().wait(500).moveTo(256, 311, 400).up().wait(100) // allowed
+        .moveTo(317, 252, 100).down().wait(500).moveTo(782, 127, 400).up().wait(500); // allowed
+
+      })
+    });
   });
 });

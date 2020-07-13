@@ -80,6 +80,7 @@ Draw.Circle = Draw.extend({
       shape: this._shape,
       workingLayer: this._layer,
     });
+    this._setGlobalDrawMode();
 
     // toggle the draw button of the Toolbar in case drawing mode got enabled without the button
     this._map.pm.Toolbar.toggleButton(this.toolbarButtonName, true);
@@ -111,6 +112,7 @@ Draw.Circle = Draw.extend({
 
     // fire drawend event
     this._map.fire('pm:drawend', { shape: this._shape });
+    this._setGlobalDrawMode();
 
     // toggle the draw button of the Toolbar in case drawing mode got disabled without the button
     this._map.pm.Toolbar.toggleButton(this.toolbarButtonName, false);
@@ -187,21 +189,29 @@ Draw.Circle = Draw.extend({
       );
 
       this._layer.fire('pm:centerplaced', {
-        shape: this._shape,
         workingLayer: this._layer,
         latlng,
       });
     }
   },
   _finishShape(e) {
+    // assign the coordinate of the click to the hintMarker, that's necessary for
+    // mobile where the marker can't follow a cursor
+    if (!this._hintMarker._snapped) {
+      this._hintMarker.setLatLng(e.latlng);
+    }
+
     // calc the radius
     const center = this._centerMarker.getLatLng();
-    const cursor = e.latlng;
-    const radius = center.distanceTo(cursor);
+    const latlng = this._hintMarker.getLatLng();
+    const radius = center.distanceTo(latlng);
     const options = Object.assign({}, this.options.pathOptions, { radius });
 
     // create the final circle layer
     const circleLayer = L.circle(center, options).addTo(this._map);
+
+    // create polygon around the circle border
+    circleLayer.pm._updateHiddenPolyCircle();
 
     // disable drawing
     this.disable();

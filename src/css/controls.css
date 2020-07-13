@@ -1,4 +1,5 @@
 .leaflet-pm-toolbar {
+
 }
 
 .leaflet-pm-toolbar .leaflet-buttons-control-button {
@@ -6,6 +7,26 @@
   box-sizing: border-box;
   position: relative;
   z-index: 3;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-actions-container a:first-child:not(.pos-right) {
+  border-radius: 0 !important;
+}
+
+.leaflet-pm-toolbar .leaflet-pm-actions-container a:last-child.pos-right {
+  border-radius: 0 !important;
+}
+
+.leaflet-pm-toolbar .button-container .leaflet-buttons-control-button {
+  border-radius: 0 !important;
+}
+
+.leaflet-pm-toolbar .button-container:last-child .leaflet-buttons-control-button {
+  border-radius: 0 0 2px 2px !important;
+}
+
+.leaflet-pm-toolbar .button-container:first-child .leaflet-buttons-control-button {
+  border-radius: 2px 2px 0 0 !important;
 }
 
 .leaflet-pm-toolbar .control-fa-icon {
@@ -34,6 +55,9 @@
 .leaflet-pm-toolbar .leaflet-pm-icon-circle {
   background-image: url('../assets/icons/Circle.svg');
 }
+.leaflet-pm-toolbar .leaflet-pm-icon-circle-marker {
+  background-image: url('../assets/icons/CircleMarker.svg');
+}
 .leaflet-pm-toolbar .leaflet-pm-icon-rectangle {
   background-image: url('../assets/icons/Rectangle.svg');
 }
@@ -49,8 +73,8 @@
 .leaflet-pm-toolbar .leaflet-pm-icon-cut {
   background-image: url('../assets/icons/Scissors.svg');
 }
-.leaflet-pm-toolbar .leaflet-pm-icon-union {
-  background-image: url('../assets/icons/Union.svg');
+.leaflet-pm-toolbar .leaflet-pm-icon-snapping {
+  background-image: url('../assets/icons/Magnet.svg');
 }
 
 .leaflet-buttons-control-button:hover {
@@ -73,7 +97,7 @@
   z-index: 2;
   position: absolute;
   top: 0;
-  left: 31px;
+  left: 100%;
   display: none;
   white-space: nowrap;
 }
@@ -82,7 +106,7 @@
   .leaflet-pm-toolbar
   .button-container
   .leaflet-pm-actions-container {
-  right: 31px;
+  right: 100%;
   left: auto;
 }
 
@@ -90,8 +114,14 @@
   display: block;
 }
 
-.button-container .leaflet-pm-actions-container .leaflet-pm-action:last-child {
-  border-radius: 0px 3px 3px 0px;
+.button-container .leaflet-pm-actions-container:not(.pos-right) .leaflet-pm-action:last-child {
+  border-radius: 0px 3px 3px 0px !important;
+  border-right: 0px;
+}
+.button-container .leaflet-pm-actions-container.pos-right .leaflet-pm-action:first-child {
+  border-radius: 3px 0px 0px 3px !important;
+}
+.button-container .leaflet-pm-actions-container.pos-right .leaflet-pm-action:last-child {
   border-right: 0px;
 }
 .button-container .leaflet-pm-actions-container .leaflet-pm-action {
@@ -108,3 +138,9 @@
   cursor: pointer;
   background-color: #777;
 }
+
+/* That the active control is always over the other controls */
+.leaflet-pm-toolbar.activeChild{
+  z-index: 801;
+}
+

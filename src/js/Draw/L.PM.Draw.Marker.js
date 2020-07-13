@@ -51,6 +51,7 @@ Draw.Marker = Draw.extend({
       shape: this._shape,
       workingLayer: this._layer,
     });
+    this._setGlobalDrawMode();
 
     // enable edit mode for existing markers
     this._map.eachLayer(layer => {
@@ -64,6 +65,9 @@ Draw.Marker = Draw.extend({
     if (!this._enabled) {
       return;
     }
+
+    // change enabled state
+    this._enabled = false;
 
     // undbind click event, don't create a marker on click anymore
     this._map.off('click', this._createMarker, this);
@@ -83,12 +87,16 @@ Draw.Marker = Draw.extend({
 
     // fire drawend event
     this._map.fire('pm:drawend', { shape: this._shape });
+    this._setGlobalDrawMode();
 
     // toggle the draw button of the Toolbar in case drawing mode got disabled without the button
     this._map.pm.Toolbar.toggleButton(this.toolbarButtonName, false);
 
-    // change enabled state
-    this._enabled = false;
+    // cleanup snapping
+    if (this.options.snappable) {
+      this._cleanupSnapping();
+    }
+
   },
   isRelevantMarker(layer) {
     return layer instanceof L.Marker && layer.pm && !layer._pmTempLayer;

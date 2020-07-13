@@ -11,7 +11,8 @@ Draw.Polygon = Draw.Line.extend({
   _finishShape(e) {
     // if self intersection is not allowed, do not finish the shape!
     if (!this.options.allowSelfIntersection) {
-      this._handleSelfIntersection(false);
+      // Check if polygon intersects when is completed and the line between the last and the first point is drawn
+      this._handleSelfIntersection(true, this._layer.getLatLngs()[0]);
 
       if (this._doesSelfIntersect) {
         return;
@@ -21,7 +22,7 @@ Draw.Polygon = Draw.Line.extend({
     // get coordinates
     const coords = this._layer.getLatLngs();
 
-    // if there is only one coords, don't finish the shape!
+    // only finish the shape if there are 3 or more vertices
     if (coords.length <= 2) {
       return;
     }
