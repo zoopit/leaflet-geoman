@@ -7,7 +7,8 @@
     "finishPoly": "Klikk på første markør for å fullføre",
     "finishRect": "Klikk for å fullføre",
     "startCircle": "Klikk for å plassere sirkelsenteret",
-    "finishCircle": "Klikk for å fullføre sirkelen"
+    "finishCircle": "Klikk for å fullføre sirkelen",
+    "placeCircleMarker": "Klikk for å plassere sirkelmarkøren"
   },
   "actions": {
     "finish": "Ferdig",
@@ -23,7 +24,6 @@
     "editButton": "Rediger lag",
     "dragButton": "Dra lag",
     "cutButton": "Skjær lag",
-    "unionButton": "Slå lag sammen",
     "deleteButton": "Fjern lag"
   }
 }

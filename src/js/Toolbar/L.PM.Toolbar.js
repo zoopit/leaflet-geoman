@@ -15,7 +15,6 @@ const Toolbar = L.Class.extend({
     editMode: true,
     dragMode: true,
     cutPolygon: true,
-    unionMode: true,
     removalMode: true,
     snappingOption: true,
     drawControls: true,
@@ -101,7 +100,6 @@ const Toolbar = L.Class.extend({
         editMode: 'control-icon leaflet-pm-icon-edit',
         dragMode: 'control-icon leaflet-pm-icon-drag',
         cutPolygon: 'control-icon leaflet-pm-icon-cut',
-        unionMode: 'control-icon leaflet-pm-icon-union',
         removalMode: 'control-icon leaflet-pm-icon-delete',
       },
     };
@@ -332,25 +330,6 @@ const Toolbar = L.Class.extend({
       tool: 'edit',
       actions: ['finish', 'removeLastVertex', 'cancel'],
     };
-    const unionButton = {
-      title: getTranslation('buttonTitles.unionButton'),
-      className: 'control-icon leaflet-pm-icon-union',
-      jsClass: 'Union',
-      onClick: () => { },
-      afterClick: () => {
-        // enable polygon drawing mode without snap
-        this.map.pm.toggleGlobalUnionMode();
-      },
-      doToggle: true,
-      toggleStatus: false,
-      disableOtherButtons: true,
-      position: this.options.position,
-      tool: 'edit',
-      actions: ['cancel'],
-      actionsText: {
-        cancel: this.options.textCancel
-      },
-    };
     const deleteButton = {
       title: getTranslation('buttonTitles.deleteButton'),
       className: 'control-icon leaflet-pm-icon-delete',
@@ -375,7 +354,6 @@ const Toolbar = L.Class.extend({
     this._addButton('editMode', new L.Control.PMButton(editButton));
     this._addButton('dragMode', new L.Control.PMButton(dragButton));
     this._addButton('cutPolygon', new L.Control.PMButton(cutButton));
-    this._addButton('unionMode', new L.Control.PMButton(unionButton));
     this._addButton('removalMode', new L.Control.PMButton(deleteButton));
   },
 
